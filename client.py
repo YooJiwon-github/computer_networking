@@ -9,7 +9,7 @@ sender_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sender_socket.bind((HOST, PORT))
 sender_socket.listen()
 
-previous_ack = None # 이전에 전송한 ack를 저장할 변수
+previous_ack = 100 # 이전에 전송한 ack를 저장할 변수
 expected_packet = 100 # 다음으로 수신되어야 할 패킷 초기화
 
 while True:
@@ -23,28 +23,24 @@ while True:
         msg = data.decode()
         print('----------> ', msg)
 
+        # 패킷이 제대로 전송된 경우
         if data == (expected_packet).to_bytes(4, byteorder="little"):
-            if previous_ack is None:
-                   ack_packet = f'ACK {expected_packet}'
-                    
-            else:
-                # ACK 송신
-                ack_packet = msg + ' ACK'
+            ack_packet = data
+            previous_ack = ack_packet
+
+            # 다음으로 수신되어야 할 패킷
+            expected_packet += 1
         else:
             # 패킷이 올바르게 수신되지 않은 경우, 이전에 올바르게 수신된 패킷의 ack를 재전송
             ack_packet = previous_ack
 
-        ack_data = ack_packet.encode()
+        ack_data = str(ack_packet).encode()
         ack_length = len(ack_data)    
 
         client_socket.sendall(ack_length.to_bytes(4, byteorder="little"))
         client_socket.sendall(ack_data)
         print('<---- ', ack_packet, 'send')
-
-        # 다음으로 수신되어야 할 패킷
-        expected_packet += 1
                      
-
     except Exception as e:
         print("Exception : ", e)
     finally:
