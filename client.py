@@ -1,33 +1,27 @@
 # -*- coding: utf-8 -*-
 import socket
-import random
 
-HOST = '127.0.0.1'
-PORT = 9999
+msgFromClient       = "Hello UDP Server"
+bytesToSend         = str.encode(msgFromClient)
+client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # 소켓 타입 변경
+server_address = ('127.0.0.1', 9999)
+client_socket.sendto(bytesToSend, server_address)
 
-sender_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sender_socket.bind((HOST, PORT))
-sender_socket.listen()
-
-previous_ack = 100 # 이전에 전송한 ack를 저장할 변수
-expected_packet = 100 # 다음으로 수신되어야 할 패킷 초기화
+previous_ack = 100  # 이전에 전송한 ack를 저장할 변수
+expected_packet = 100  # 다음으로 수신되어야 할 패킷 초기화
 
 while True:
-    client_socket, addr = sender_socket.accept()
-
     try:
-        #패킷 수신
-        data = client_socket.recv(4)
-        length = int.from_bytes(data, "little")
-        data = client_socket.recv(length)
-        msg = data.decode()
+        # 패킷 수신
+        data, _ = client_socket.recvfrom(1024)  # 서버와 마찬가지로 recvfrom 사용
+        length = int.from_bytes(data[:4], "little")
+        msg = data[4:length + 4].decode()
         print('----------> ', msg)
 
         # 패킷이 제대로 전송된 경우
-        if data == (expected_packet).to_bytes(4, byteorder="little"):
-            ack_packet = data
+        if int(msg) == expected_packet:
+            ack_packet = msg
             previous_ack = ack_packet
-
             # 다음으로 수신되어야 할 패킷
             expected_packet += 1
         else:
@@ -35,13 +29,10 @@ while True:
             ack_packet = previous_ack
 
         ack_data = str(ack_packet).encode()
-        ack_length = len(ack_data)    
+        ack_length = len(ack_data)
 
-        client_socket.sendall(ack_length.to_bytes(4, byteorder="little"))
-        client_socket.sendall(ack_data)
+        client_socket.sendto(length.to_bytes(4, byteorder="little") + ack_data, server_address)  # sendall 대신 sendto 사용
         print('<---- ', ack_packet, 'send')
-                     
+
     except Exception as e:
         print("Exception : ", e)
-    finally:
-        client_socket.close()
